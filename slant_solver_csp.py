@@ -115,70 +115,71 @@ from ortools.sat.python import cp_model
 
 # This part used to find all the solutions for the given puzzle and slants durning the development time
 # but since there is no optimal solution and feasible solutions are enough, this part is commented out.
-''' 
-    class SlantPuzzleSolutionPrinter(cp_model.CpSolverSolutionCallback):
-        """Print intermediate solutions."""
+""" """
 
-        def __init__(self, puzzle, slants):
-            cp_model.CpSolverSolutionCallback.__init__(self)
-            self.__puzzle = puzzle
-            self.__slants = slants
-            self.__solution_count = 0
-            self.__start_time = time.time()
 
-        """
-            Since OR-Tools does not support string values
-            we need to represent the solution as integers
-            and convert them to string representation when 
-            we need with this function. 
-        """
+class SlantPuzzleSolutionPrinter(cp_model.CpSolverSolutionCallback):
+    """Print intermediate solutions."""
 
-        def int_to_str_representation(self, i, conversion):
-            if conversion == "solution":
-                return "\\" if self.Value(i) == -1 else "/"
-            elif conversion == "puzzle":
-                return "*" if self.Value(i) == -1 else str(self.Value(i))
+    def __init__(self, puzzle, slants):
+        cp_model.CpSolverSolutionCallback.__init__(self)
+        self.__puzzle = puzzle
+        self.__slants = slants
+        self.__solution_count = 0
+        self.__start_time = time.time()
 
-        def solution_count(self):
-            return self.__solution_count
+    """
+        Since OR-Tools does not support string values
+        we need to represent the solution as integers
+        and convert them to string representation when 
+        we need with this function. 
+    """
 
-        """
-            This function is called when a solution is found.
-            It prints the solution and the puzzle.
-        """
+    def int_to_str_representation(self, i, conversion):
+        if conversion == "solution":
+            return "\\" if self.Value(i) == -1 else "/"
+        elif conversion == "puzzle":
+            return "*" if self.Value(i) == -1 else str(self.Value(i))
 
-        def on_solution_callback(self):
-            current_time = time.time()
-            print(
-                "Solution %i, time = %f s"
-                % (self.__solution_count, current_time - self.__start_time)
-            )
-            self.__solution_count += 1
+    def solution_count(self):
+        return self.__solution_count
 
-            for i in range(len(self.__slants) * 2 + 1):
-                for j in range(len(self.__slants) * 2 + 1):
-                    if i % 2 == 0:
-                        if j % 2 == 0:
-                            print(
-                                self.int_to_str_representation(
-                                    self.__puzzle[i // 2][j // 2], "puzzle"
-                                ),
-                                end="",
-                            )
-                        else:
-                            print(" ", end="")
+    """
+        This function is called when a solution is found.
+        It prints the solution and the puzzle.
+    """
+
+    def on_solution_callback(self):
+        current_time = time.time()
+        print(
+            "Solution %i, time = %f s"
+            % (self.__solution_count, current_time - self.__start_time)
+        )
+        self.__solution_count += 1
+
+        for i in range(len(self.__slants) * 2 + 1):
+            for j in range(len(self.__slants) * 2 + 1):
+                if i % 2 == 0:
+                    if j % 2 == 0:
+                        print(
+                            self.int_to_str_representation(
+                                self.__puzzle[i // 2][j // 2], "puzzle"
+                            ),
+                            end="",
+                        )
                     else:
-                        if j % 2 == 0:
-                            print(" ", end="")
-                        else:
-                            print(
-                                self.int_to_str_representation(
-                                    self.__slants[i // 2][j // 2], "solution"
-                                ),
-                                end="",
-                            )
-                print()
-'''
+                        print(" ", end="")
+                else:
+                    if j % 2 == 0:
+                        print(" ", end="")
+                    else:
+                        print(
+                            self.int_to_str_representation(
+                                self.__slants[i // 2][j // 2], "solution"
+                            ),
+                            end="",
+                        )
+            print()
 
 
 def solve_slant_puzzle(puzzle):
@@ -202,34 +203,39 @@ def solve_slant_puzzle(puzzle):
 
     num_constraints += 1  # because previous line is constraining the number of slants to be (N-1)x(N-1)
 
-    # There are `NxN` number of intersections and they can have sum values from 0 to 4.
-    sum_intersections = [
-        [model.NewIntVar(0, 4, f"sum_{i}{j}") for i in range(N)] for j in range(N)
-    ]
-
     # Check every intersection node in puzzle and add the constraint if it is not a -1 ("*").
     # Constraint is that the sum of the intersections should be equal to the value of the node.
     for i in range(N):
         for j in range(N):
             if puzzle[i][j] != -1:
-                if not i < 0 and not j < 0:
-                    sum_intersections[i][j] += (
-                        slants[i - 1][j - 1] * -1
-                    )  # i-1, j-1 is the top left corner of the node
-                if not i - 1 < 0 and not j > N - 2:
-                    sum_intersections[i][j] += slants[i - 1][
-                        j
-                    ]  # i-1, j is the top right corner of the node
-                if not i > N - 2 and not j - 1 < 0:
-                    sum_intersections[i][j] += slants[i][
-                        j - 1
-                    ]  # i, j-1 is the bottom left corner of the node
-                if not i > N - 2 and not j > N - 2:
-                    sum_intersections[i][j] += (
-                        slants[i][j] * -1
-                    )  # i, j is the bottom right corner of the node
+                # Create temporary variables to store the counts of slants for each intersection.
+                count_vars = []
+                if i > 0 and j > 0:
+                    count_vars.append(model.NewBoolVar(f"top_left_{i}{j}"))
+                    model.Add(slants[i - 1][j - 1] == -1).OnlyEnforceIf(count_vars[-1])
+                    model.Add(slants[i - 1][j - 1] != -1).OnlyEnforceIf(
+                        count_vars[-1].Not()
+                    )
+                    num_constraints += 2
+                if i > 0 and j < N - 1:
+                    count_vars.append(model.NewBoolVar(f"top_right_{i}{j}"))
+                    model.Add(slants[i - 1][j] == 1).OnlyEnforceIf(count_vars[-1])
+                    model.Add(slants[i - 1][j] != 1).OnlyEnforceIf(count_vars[-1].Not())
+                    num_constraints += 2
+                if i < N - 1 and j > 0:
+                    count_vars.append(model.NewBoolVar(f"bottom_left_{i}{j}"))
+                    model.Add(slants[i][j - 1] == 1).OnlyEnforceIf(count_vars[-1])
+                    model.Add(slants[i][j - 1] != 1).OnlyEnforceIf(count_vars[-1].Not())
+                    num_constraints += 2
+                if i < N - 1 and j < N - 1:
+                    count_vars.append(model.NewBoolVar(f"bottom_right_{i}{j}"))
+                    model.Add(slants[i][j] == -1).OnlyEnforceIf(count_vars[-1])
+                    model.Add(slants[i][j] != -1).OnlyEnforceIf(count_vars[-1].Not())
+                    num_constraints += 2
 
-                model.Add(sum_intersections[i][j] == puzzle[i][j])
+                # Add a constraint that the sum of count_vars should be equal to the value of the node.
+                model.Add(sum(count_vars) == puzzle[i][j])
+
                 num_constraints += 1
 
     # Add the constraints for possible loops (only for 2x2, 3x3, 4x4, 5x5, 6x6 and 7x7)
@@ -361,9 +367,14 @@ def solve_slant_puzzle(puzzle):
 
     # Solve the model.
     solver = cp_model.CpSolver()
-    # solution_printer = SlantPuzzleSolutionPrinter(puzzle, slants)
-    solver.Solve(model)
+
+    solution_printer = SlantPuzzleSolutionPrinter(puzzle, slants)
+    solver.Solve(model, solution_printer)
     print(solver.ResponseStats())
+
+    while solver.StatusName() == "INFEASIBLE":
+        solver.Solve(model)
+        print(solver.ResponseStats())
 
     # Get the number of backtracks/choices.
     num_backtracks = solver.NumBranches()
@@ -374,7 +385,6 @@ def solve_slant_puzzle(puzzle):
     ]
 
     num_variables = (N - 1) * (N - 1)  # The number of slants is (N-1) * (N-1).
-    num_variables += N * N  # The number of sum_interactions is N * N.
 
     return solution, num_variables, num_constraints, num_backtracks
 
