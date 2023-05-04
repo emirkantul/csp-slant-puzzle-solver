@@ -403,10 +403,10 @@ def int_to_str_representation(i, conversion):
 
 
 def main():
-    metrics = {"easy": {}, "normal": {}, "hard": {}}
+    metrics = {"easy": {}, "normal": {}, "hard": {}, "test": {}}
 
     for metric in metrics:
-        for th in range(1, 6):
+        for th in range(1, 6 if metric != "test" else 4):
             file_name = f"{metric}{th}.txt"
             puzzle = read_puzzle("./puzzles/" + file_name)
             print(f"\nSolving {metric} puzzle {th}: ", file_name)
@@ -461,25 +461,17 @@ def main():
 
     print("\nSummary:")
     print("Puzzle \t\t Variables \t\t Constraints \t\t Backtracks/Choices \t CPU Time")
+    common_summary = {
+        "num_variables": 0,
+        "num_constraints": 0,
+        "num_backtracks": 0,
+        "cpu_time": 0,
+    }
     averages = {
-        "easy": {
-            "num_variables": 0,
-            "num_constraints": 0,
-            "num_backtracks": 0,
-            "cpu_time": 0,
-        },
-        "normal": {
-            "num_variables": 0,
-            "num_constraints": 0,
-            "num_backtracks": 0,
-            "cpu_time": 0,
-        },
-        "hard": {
-            "num_variables": 0,
-            "num_constraints": 0,
-            "num_backtracks": 0,
-            "cpu_time": 0,
-        },
+        "easy": common_summary,
+        "normal": common_summary,
+        "hard": common_summary,
+        "test": common_summary,
     }
     for m in metrics:
         for i in metrics[m]:
